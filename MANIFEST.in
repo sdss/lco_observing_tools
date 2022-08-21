@@ -1,0 +1,2 @@
+recursive-include python/lco_observing_tools/etc *
+recursive-include cextern/**/*
