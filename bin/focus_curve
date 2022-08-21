@@ -8,24 +8,47 @@
 
 from __future__ import annotations
 
+import pathlib
 import socket
 
 import click
 import matplotlib
 from matplotlib import pyplot as plt
 
-from lco_observing_tools.focus import plot_focus, process_mjd
+from lco_observing_tools.focus import get_seqno, plot_focus, process_mjd
 
 
 @click.command(name="focus-curve")
 @click.argument("MJD", type=int)
-@click.argument("START", type=int)
-@click.argument("END", type=int)
-def focus_cli(mjd: int, start: int, end: int):
+@click.argument("START", type=int, required=False)
+@click.argument("END", type=int, required=False)
+@click.option("--last", type=int, help="Uses the last N images for this MJD.")
+def focus_cli(
+    mjd: int,
+    start: int | None = None,
+    end: int | None = None,
+    last: int | None = None,
+):
     """Generate and plot a focus curve."""
 
     if socket.gethostname().startswith("sdss5"):
         matplotlib.use("TKAgg")
+
+    if last is not None:
+        gcam = pathlib.Path(f"/data/gcam/{mjd}")
+        files = gcam.glob("gimg-gfa[1-6]s-[0-9][0-9][0-9][0-9].fits")
+
+        max_seqno = 0
+        for file in files:
+            seq_no = get_seqno(file)
+            if seq_no > max_seqno:
+                max_seqno = seq_no
+
+        start = max_seqno - last
+        end = max_seqno
+
+    if start is None or end is None:
+        raise click.UsageError("Use --last or provide START and END sequence numbers.")
 
     data = process_mjd(mjd, start, end)
     piston = plot_focus(data, interactive=False)
