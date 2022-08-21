@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# @Author: José Sánchez-Gallego (gallegoj@uw.edu)
+# @Date: 2022-08-21
+# @Filename: focus_curve
+# @License: BSD 3-clause (http://www.opensource.org/licenses/BSD-3-Clause)
+
+from __future__ import annotations
+
+import socket
+
+import click
+import matplotlib
+from matplotlib import pyplot as plt
+
+from lco_observing_tools.focus import plot_focus, process_mjd
+
+
+@click.command(name="focus-curve")
+@click.argument("MJD", type=int)
+@click.argument("START", type=int)
+@click.argument("END", type=int)
+def focus_cli(mjd: int, start: int, end: int):
+    """Generate and plot a focus curve."""
+
+    if socket.gethostname().startswith("sdss5"):
+        matplotlib.use("TKAgg")
+
+    data = process_mjd(mjd, start, end)
+    piston = plot_focus(data, interactive=False)
+
+    min_piston = piston.index[piston.argmin()]
+    print(f"Piston at minimum FWHM: {min_piston} microns.")
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    focus_cli()
