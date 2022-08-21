@@ -56,10 +56,7 @@ def focus_cli(
         raise click.UsageError("Use --last or provide START and END sequence numbers.")
 
     data = process_mjd(mjd, start, end)
-    piston = plot_focus(data, interactive=False)
-
-    min_piston = piston.index[piston.argmin()]
-    print(f"Piston at minimum FWHM: {min_piston} microns.")
+    plot_focus(data, interactive=False)
 
     plt.show()
 
