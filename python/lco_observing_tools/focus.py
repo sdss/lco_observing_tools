@@ -110,7 +110,7 @@ def get_fwhm(data: pandas.DataFrame, filter: bool = True):
 
     if filter:
         data = filter_data(data)
-    # return data.groupby(["seq_no", "camera"]).apply(_calc_fwhm)
+
     data["fwhm"] = data.groupby(["seq_no", "camera"]).apply(_calc_fwhm)
 
     return data
