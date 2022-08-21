@@ -15,11 +15,13 @@ import click
 import matplotlib
 from matplotlib import pyplot as plt
 
+from sdsstools.time import get_sjd
+
 from lco_observing_tools.focus import get_seqno, plot_focus, process_mjd
 
 
 @click.command(name="focus-curve")
-@click.argument("MJD", type=int)
+@click.argument("MJD", type=int, required=False)
 @click.argument("START", type=int, required=False)
 @click.argument("END", type=int, required=False)
 @click.option("--last", type=int, help="Uses the last N images for this MJD.")
@@ -33,6 +35,9 @@ def focus_cli(
 
     if socket.gethostname().startswith("sdss5"):
         matplotlib.use("TKAgg")
+
+    if mjd is None:
+        mjd = get_sjd("LCO")
 
     if last is not None:
         gcam = pathlib.Path(f"/data/gcam/{mjd}")
