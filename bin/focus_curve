@@ -7,6 +7,8 @@
 # @License: BSD 3-clause (http://www.opensource.org/licenses/BSD-3-Clause)
 
 from __future__ import annotations
+import contextlib
+import os
 
 import pathlib
 import socket
@@ -37,7 +39,9 @@ def focus_cli(
         matplotlib.use("TKAgg")
 
     if mjd is None:
-        mjd = get_sjd("LCO")
+        # sdsstools get_sjd() prints the SJD.
+        with contextlib.redirect_stdout(open(os.devnull, 'w')):
+            mjd = int(get_sjd("LCO"))
 
     if last is not None:
         gcam = pathlib.Path(f"/data/gcam/{mjd}")
