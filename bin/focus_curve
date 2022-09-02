@@ -7,16 +7,15 @@
 # @License: BSD 3-clause (http://www.opensource.org/licenses/BSD-3-Clause)
 
 from __future__ import annotations
+
 import contextlib
 import os
-
 import pathlib
 import socket
 
 import click
 import matplotlib
 from matplotlib import pyplot as plt
-
 from sdsstools.time import get_sjd
 
 from lco_observing_tools.focus import get_seqno, plot_focus, process_mjd
@@ -40,7 +39,7 @@ def focus_cli(
 
     if mjd is None:
         # sdsstools get_sjd() prints the SJD.
-        with contextlib.redirect_stdout(open(os.devnull, 'w')):
+        with contextlib.redirect_stdout(open(os.devnull, "w")):
             mjd = int(get_sjd("LCO"))
 
     if last is not None:
