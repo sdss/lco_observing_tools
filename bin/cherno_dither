@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# @Author: José Sánchez-Gallego (gallegoj@uw.edu)
+# @Date: 2022-09-02
+# @Filename: cherno_dither
+# @License: BSD 3-clause (http://www.opensource.org/licenses/BSD-3-Clause)
+
+from __future__ import annotations
+
+import click
+
+from lco_observing_tools.dithers import ra_dec_dither
+
+
+@click.command()
+@click.argument("RADIUS", type=float)
+@click.option(
+    "-n",
+    type=int,
+    default=12,
+    show_default=True,
+    help="Number of dithers in the sequence",
+)
+@click.option(
+    "--default",
+    type=float,
+    nargs=3,
+    default=(0.0, 0.0, 0.0),
+    help="The RA, Dec, rot of the central offset.",
+)
+def cherno_dither(
+    radius: float,
+    n: int = 12,
+    default: tuple[float, float, float] = (0.0, 0.0, 0.0),
+):
+    """Prints a series of cherno offset command for a dither sequence."""
+
+    print(f"cherno offset {default[0]} {default[1]} {default[2]}")
+
+    for _ in range(n):
+        ra_off, dec_off, rot_off = ra_dec_dither(radius, default=default)
+        print(f"cherno offset {ra_off} {dec_off} {rot_off}")
+
+
+if __name__ == "__main__":
+    cherno_dither()
