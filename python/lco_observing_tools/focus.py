@@ -41,7 +41,7 @@ def run_sep(path: pathlib.Path, threshold: float = 5, **sep_opts):
 
     seq_no = get_seqno(path)
 
-    data = fits.getdata(str(path)).astype("f8")
+    data = fits.getdata(str(path)).astype("f8")  # type: ignore
     header = fits.getheader(str(path), 1)
 
     back = sep.Background(data)
@@ -103,7 +103,7 @@ def get_fwhm(data: pandas.DataFrame, filter: bool = True):
 
     def _calc_fwhm(g):
         fwhm_pixel = numpy.mean(2 * numpy.sqrt(numpy.log(2) * (g.a**2 + g.b**2)))
-        return PIXEL_SCALE * fwhm_pixel
+        return float(PIXEL_SCALE * fwhm_pixel)
 
     data = data.copy()
     data = data.set_index(["seq_no", "camera"])
