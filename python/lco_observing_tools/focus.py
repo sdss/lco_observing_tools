@@ -11,57 +11,55 @@ from __future__ import annotations
 import multiprocessing
 import pathlib
 import re
+from typing import cast
 
-import matplotlib.pyplot as plt
 import numpy
 import pandas
 import seaborn
-import sep
 from astropy.io import fits
+from astropy.stats.sigma_clipping import SigmaClip
+from coordio.extraction import extract_marginal
+from matplotlib import pyplot as plt
+
+
+seaborn.set_theme()
 
 
 RESULTS = pathlib.Path(__file__).parent / "../results/lco"
 PIXEL_SCALE = 0.146
 
-seaborn.set_theme()
+
+def _extract(file_: str):
+    """Extract sources."""
+
+    image = cast(numpy.ndarray, fits.getdata(file_, 1))
+    header = fits.getheader(file_, 1)
+    extracted = extract_marginal(image, sigma_0=4)
+
+    if len(extracted) > 0:
+        extracted["frame"] = get_seqno(file_)
+        extracted["m2"] = header.get("FOCUS", numpy.nan)
+        extracted["camera"] = header.get("CAMNAME", "NA")
+        return extracted
+
+    return None
 
 
 def get_seqno(path: pathlib.Path):
     """Returns the sequence number."""
 
     match = re.search(r"gimg-gfa[1-6]s-([0-9]+).fits", str(path))
+
     if match:
         return int(match.group(1))
     else:
-        raise ValueError
-
-
-def run_sep(path: pathlib.Path, threshold: float = 5, **sep_opts):
-    """Substracts background and runs extraction."""
-
-    seq_no = get_seqno(path)
-
-    data = fits.getdata(str(path)).astype("f8")  # type: ignore
-    header = fits.getheader(str(path), 1)
-
-    back = sep.Background(data)
-    rms = back.rms()
-
-    stars = sep.extract(data - back, threshold, err=rms)
-
-    df = pandas.DataFrame(stars)
-    df["camera"] = int(header["CAMNAME"][3])
-    df["seq_no"] = seq_no
-    df["mjd"] = int(header["SJD"])
-    df["m2piston"] = header["M2PISTON"]
-
-    return df
+        raise ValueError()
 
 
 def process_mjd(mjd: int, min_seqno: int | None = None, max_seqno: int | None = None):
-    """Processes and MJD."""
+    """Collects the focus data and produces a data frame."""
 
-    gcam = pathlib.Path(f"/data/gcam/{mjd}")
+    gcam = pathlib.Path(f"/data/gcam/lco/{mjd}")
     files = gcam.glob("gimg-gfa[1-6]s-[0-9][0-9][0-9][0-9].fits")
 
     if min_seqno and max_seqno:
@@ -73,69 +71,91 @@ def process_mjd(mjd: int, min_seqno: int | None = None, max_seqno: int | None = 
 
         files = valid_files
 
-    with multiprocessing.Pool(4) as pool:
-        data_list = pool.map(run_sep, files)
+    data_frames = []
+    with multiprocessing.Pool(10) as pool:
+        for result in pool.imap(_extract, files):
+            if result is not None:
+                data_frames.append(result)
 
-    data = pandas.concat(data_list)
-
-    return data
-
-
-def filter_data(data: pandas.DataFrame):
-    """Excludes bad data."""
-
-    ecc = numpy.sqrt(data.a**2 - data.b**2) / data.a
-
-    # fmt: off
-    filter = (
-        (data.a * PIXEL_SCALE) < 5 &
-        ((data.a * PIXEL_SCALE) > 0.4) &
-        (data.cpeak < 60000) &
-        (ecc < 0.7)
+    sources = pandas.concat(data_frames)
+    sources = sources.loc[(sources.xfitvalid == 1) & (sources.yfitvalid == 1)]
+    sources["std"] = numpy.average(
+        sources.loc[:, ["xstd", "ystd"]],
+        weights=1 / sources.loc[:, ["xrms", "yrms"]],
+        axis=1,
     )
-    # fmt: on
+    sources["rms"] = numpy.average(sources.loc[:, ["xrms", "yrms"]])
+    sources["fwhm"] = sources["std"] * 0.146 * 2.355
 
-    return data.loc[filter]
-
-
-def get_fwhm(data: pandas.DataFrame, filter: bool = True):
-    """Returns the FWHM in arcsec."""
-
-    def _calc_fwhm(g):
-        fwhm_pixel = numpy.mean(2 * numpy.sqrt(numpy.log(2) * (g.a**2 + g.b**2)))
-        return float(PIXEL_SCALE * fwhm_pixel)
-
-    data = data.copy()
-    data = data.set_index(["seq_no", "camera"])
-
-    if filter:
-        data = filter_data(data)
-
-    data["fwhm"] = data.groupby(["seq_no", "camera"]).apply(_calc_fwhm)
-
-    return data
+    return sources
 
 
-def plot_focus(
+def calculate_median(data: pandas.DataFrame):
+    """Sigclips and calculates the median for each M2 position."""
+
+    sigclip = SigmaClip(3)
+
+    fwhm_median = data.groupby("m2").fwhm.apply(
+        lambda x: numpy.median(sigclip(x, masked=False))  # type: ignore
+    )
+
+    fwhm_median = fwhm_median.to_frame()
+    fwhm_median["std"] = data.groupby("m2").fwhm.apply(numpy.std)
+
+    return fwhm_median
+
+
+def fit_parabola(data: pandas.DataFrame):
+    """Fits a parabola to the data."""
+
+    medians = calculate_median(data)
+
+    x = medians.index
+    y = medians.fwhm
+    w = 1 / medians["std"]
+    a, b, c = numpy.polyfit(x, y, 2, w=w, full=False)
+
+    return (a, b, c)
+
+
+def plot_focus_curve(
     data: pandas.DataFrame,
     interactive: bool = True,
-    outpath: str | pathlib.Path | None = None,
+    outpath: str | None = None,
 ):
-    """Filters and plots focus data."""
+    """Plots the data and parabola."""
 
-    mjd = data.mjd.iloc[0]
+    with plt.ioff():
+        # Plot data.
+        fig, ax = plt.subplots(nrows=1, ncols=1)
 
-    fwhm = get_fwhm(data.copy())
-    fwhm_piston = fwhm.groupby("m2piston").apply(lambda g: g.fwhm.median())
+        ax.scatter(data.m2, data.fwhm, s=15, color="m", ec="None", alpha=0.5)
 
-    with plt.ioff():  # type: ignore
-        fig, ax = plt.subplots()
+        medians = calculate_median(data)
+        ax.errorbar(
+            medians.index,
+            medians.fwhm,
+            yerr=medians["std"],
+            fmt="o",
+            color="k",
+            alpha=0.3,
+        )
 
-        seaborn.scatterplot(x=fwhm_piston.index, y=fwhm_piston)
-        ax.set_xlabel("M2 Piston [microns]")
-        ax.set_ylabel("FWHM [arcsec]")
+        # Plot parabola.
+        a, b, c = fit_parabola(data)
+        xmin = numpy.min(data.m2)
+        xmax = numpy.max(data.m2)
 
-        ax.set_title(f"{mjd}")
+        xx = numpy.arange(xmin - 50, xmax + 50, 1)
+        yy = a * xx**2 + b * xx + c
+        best_m2 = -b / 2 / a
+
+        ax.plot(xx, yy, "r-")
+
+        ax.set_ylim(0.5, None)
+        ax.set_xlabel("M2 position [microns]")
+        ax.set_xlabel("FWHM [arcsec]")
+        ax.set_title(f"M2 position at best focus: {best_m2:.0f} microns")
 
     if interactive:
         plt.show()
@@ -143,4 +163,4 @@ def plot_focus(
     if outpath:
         fig.savefig(str(outpath))
 
-    return fwhm_piston
+    return

@@ -18,7 +18,13 @@ import matplotlib
 from matplotlib import pyplot as plt
 from sdsstools.time import get_sjd
 
-from lco_observing_tools.focus import get_seqno, plot_focus, process_mjd
+from lco_observing_tools.focus import (
+    calculate_median,
+    fit_parabola,
+    get_seqno,
+    plot_focus_curve,
+    process_mjd,
+)
 
 
 @click.command(name="focus-curve")
@@ -43,7 +49,7 @@ def focus_cli(
             mjd = int(get_sjd("LCO"))
 
     if last is not None:
-        gcam = pathlib.Path(f"/data/gcam/{mjd}")
+        gcam = pathlib.Path(f"/data/gcam/lco/{mjd}")
         files = gcam.glob("gimg-gfa[1-6]s-[0-9][0-9][0-9][0-9].fits")
 
         max_seqno = 0
@@ -59,7 +65,15 @@ def focus_cli(
         raise click.UsageError("Use --last or provide START and END sequence numbers.")
 
     data = process_mjd(mjd, start, end)
-    plot_focus(data, interactive=False)
+    plot_focus_curve(data, interactive=False)
+
+    print()
+    print("Results:")
+    print(calculate_median(data).sort_index())
+    print()
+
+    a, b, c = fit_parabola(data)
+    print(f"M2 position at best focus: {-b / 2 / a:.0f} microns")
 
     plt.show()
 
