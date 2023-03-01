@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import subprocess
 
 from clu.legacy.tron import TronConnection
@@ -31,11 +32,6 @@ ACTORS = [
 ]
 
 
-# "apogeecal",
-# "apogee",
-# "lcotcc",
-
-
 async def get_actor_versions():
     """Retrieves actor versions by connecting to the hub."""
 
@@ -53,17 +49,16 @@ async def get_actor_versions():
             if reply.message_code == ">" or reply.message == {}:
                 continue
             for key, value in reply.message.items():
-                name = f"{actor}.{key}"
-                name = name.ljust(32)
-                print(f"{name} \t {value[0]}")
+                name = f"{actor}.{key}" if key != "version" else actor
+                print(f"{name:<33} \t {value[0]}")
 
     cmd_tcc = await client.send_command("lcotcc", "show version")
     tcc_version_reply = cmd_tcc.replies.get("Version")
     if tcc_version_reply:
-        print(f"{'lcotcc.version':<32} \t {tcc_version_reply[0]}")
+        print(f"{'lcotcc.version':<33} \t {tcc_version_reply[0]}")
 
-    print(f"{'apogee.version':<32} \t not available")
-    print(f"{'apogeecal.version':<32} \t not available")
+    print(f"{'apogee.version':<33} \t not available")
+    print(f"{'apogeecal.version':<33} \t not available")
 
 
 def get_sos_version():
@@ -76,9 +71,47 @@ def get_sos_version():
         stdout=subprocess.PIPE,
         shell=True,
     )
-    version = cmd.stdout.decode()
+    version = cmd.stdout.decode().strip()
 
-    print(f"{'SoS.version':<32} \t {version}")
+    print(f"{'SoS':<33} \t {version}")
+
+
+def get_module_versions(modules: list[str]):
+    """Prints out module versions."""
+
+    for module in modules:
+        cmd = subprocess.run(
+            "source /home/sdss5/config/services/util/sources.sh && "
+            f"module load {module} && "
+            f"module show {module}",
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            shell=True,
+        )
+        info = cmd.stderr.decode()
+
+        match = re.search(rf"{module}/(.+?)\.lua", info, re.MULTILINE)
+        if match:
+            version = match.group(1)
+            print(f"{module:<33} \t {version}")
+
+
+def get_kronos_versions():
+    """Retrieves kronos and autoscheduler versions."""
+
+    cmd = subprocess.run(
+        "source /home/sdss5/config/services/util/sources.sh && "
+        f"module load kronos && "
+        f"kronosversion.py && roboschedulerversion.py",
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        shell=True,
+    )
+
+    info = cmd.stdout.decode().strip().split()
+
+    print(f"{'kronos':<33} \t {info[0].strip()}")
+    print(f"{'roboscheduler':<33} \t {info[1].strip()}")
 
 
 def get_versions():
@@ -86,3 +119,5 @@ def get_versions():
 
     asyncio.run(get_actor_versions())
     get_sos_version()
+    get_module_versions(["tron"])
+    get_kronos_versions()
