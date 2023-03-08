@@ -59,7 +59,7 @@ def get_seqno(path: pathlib.Path):
 def process_mjd(mjd: int, min_seqno: int | None = None, max_seqno: int | None = None):
     """Collects the focus data and produces a data frame."""
 
-    gcam = pathlib.Path(f"/data/gcam/lco/{mjd}")
+    gcam = pathlib.Path(f"/data/gcam/{mjd}")
     files = gcam.glob("gimg-gfa[1-6]s-[0-9][0-9][0-9][0-9].fits")
 
     if min_seqno and max_seqno:
