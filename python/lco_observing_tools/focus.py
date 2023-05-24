@@ -130,7 +130,6 @@ def plot_focus_curve(
         # Plot data.
         fig, ax = plt.subplots(nrows=1, ncols=1)
 
-        data.m2 += offset
         ax.scatter(data.m2, data.fwhm, s=15, color="m", ec="None", alpha=0.5)
 
         medians = calculate_median(data)
@@ -150,7 +149,7 @@ def plot_focus_curve(
 
         xx = numpy.arange(xmin - 50, xmax + 50, 1)
         yy = a * xx**2 + b * xx + c
-        best_m2 = -b / 2 / a
+        best_m2 = -b / 2 / a + offset
 
         ax.plot(xx, yy, "r-")
 
