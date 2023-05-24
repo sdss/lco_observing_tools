@@ -122,6 +122,7 @@ def plot_focus_curve(
     data: pandas.DataFrame,
     interactive: bool = True,
     outpath: str | None = None,
+    offset: float = 0.0,
 ):
     """Plots the data and parabola."""
 
@@ -129,6 +130,7 @@ def plot_focus_curve(
         # Plot data.
         fig, ax = plt.subplots(nrows=1, ncols=1)
 
+        data.m2 += offset
         ax.scatter(data.m2, data.fwhm, s=15, color="m", ec="None", alpha=0.5)
 
         medians = calculate_median(data)
@@ -155,7 +157,14 @@ def plot_focus_curve(
         ax.set_ylim(0.5, None)
         ax.set_xlabel("M2 position [microns]")
         ax.set_xlabel("FWHM [arcsec]")
-        ax.set_title(f"M2 position at best focus: {best_m2:.0f} microns")
+
+        if offset == 0.0:
+            ax.set_title(f"M2 position at best focus: {best_m2:.0f} microns")
+        else:
+            ax.set_title(
+                f"M2 position at best FPS focus (with offset {offset}): "
+                f"{best_m2:.0f} microns"
+            )
 
     if interactive:
         plt.show()

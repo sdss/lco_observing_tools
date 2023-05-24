@@ -16,6 +16,7 @@ import socket
 import click
 import matplotlib
 from matplotlib import pyplot as plt
+from sdsstools import get_logger
 from sdsstools.time import get_sjd
 
 from lco_observing_tools.focus import (
@@ -39,6 +40,8 @@ def focus_cli(
     last: int | None = None,
 ):
     """Generate and plot a focus curve."""
+
+    log = get_logger("focus_curve")
 
     if socket.gethostname().startswith("sdss5"):
         matplotlib.use("TKAgg")
@@ -64,16 +67,37 @@ def focus_cli(
     if start is None or end is None:
         raise click.UsageError("Use --last or provide START and END sequence numbers.")
 
+    # Determine offset between GFA and FPS.
+    wok_calib_dir = os.environ.get("WOKCALIB_DIR", None)
+    offset_path = os.path.join(wok_calib_dir, "focus_offset") if wok_calib_dir else None
+    offset = 0
+    if wok_calib_dir is None:
+        log.warning("$WOKCALIB_DIR not defined. Using offset=0.")
+
+    else:
+        if offset_path and os.path.exists(offset_path):
+            lines = open(offset_path).read().splitlines()
+            for line in lines:
+                if line.strip().startswith("#") or line.strip() == "":
+                    continue
+                offset = float(line.strip())
+                break
+
+    if offset != 0:
+        log.warning(f"Using an FPS-GFA offset of {offset} microns.")
+
     data = process_mjd(mjd, start, end)
-    plot_focus_curve(data, interactive=False)
+    plot_focus_curve(data, interactive=False, offset=offset)
 
     print()
     print("Results:")
-    print(calculate_median(data).sort_index())
+    medians = calculate_median(data)
+    medians.index += offset
+    print(medians.sort_index())
     print()
 
     a, b, c = fit_parabola(data)
-    print(f"M2 position at best focus: {-b / 2 / a:.0f} microns")
+    print(f"M2 position at best focus: {-b / 2 / a + offset:.0f} microns")
 
     plt.show()
 
