@@ -99,7 +99,10 @@ def focus_cli(
     print(f"M2 position at best GFA focus: {-b / 2 / a:.0f} microns")
 
     if offset != 0.0:
-        print(f"M2 position at best FPS focus: {-b / 2 / a + offset:.0f} microns")
+        print(
+            f"M2 position at best FPS focus: {-b / 2 / a + offset:.0f} microns  "
+            "<-- USE THIS"
+        )
 
     plt.show()
 
