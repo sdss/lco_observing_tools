@@ -153,7 +153,7 @@ def plot_focus_curve(
 
         ax.plot(xx, yy, "r-")
 
-        ax.set_ylim(0.5, None)
+        ax.set_ylim(0.5, numpy.max(medians.fwhm) + 0.5)
         ax.set_xlabel("M2 position [microns]")
         ax.set_xlabel("FWHM [arcsec]")
 
