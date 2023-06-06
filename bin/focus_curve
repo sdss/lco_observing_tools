@@ -61,7 +61,7 @@ def focus_cli(
             if seq_no > max_seqno:
                 max_seqno = seq_no
 
-        start = max_seqno - last
+        start = max_seqno - last + 1
         end = max_seqno
 
     if start is None or end is None:
