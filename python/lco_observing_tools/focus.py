@@ -34,7 +34,7 @@ def _extract(file_: str):
 
     image = cast(numpy.ndarray, fits.getdata(file_, 1))
     header = fits.getheader(file_, 1)
-    extracted = extract_marginal(image, sigma_0=4)
+    extracted = extract_marginal(image, max_detections=50)
 
     if len(extracted) > 0:
         extracted["frame"] = get_seqno(file_)
