@@ -72,7 +72,7 @@ def process_mjd(mjd: int, min_seqno: int | None = None, max_seqno: int | None = 
         files = valid_files
 
     data_frames = []
-    with multiprocessing.Pool(10) as pool:
+    with multiprocessing.Pool(2) as pool:
         for result in pool.imap(_extract, files):
             if result is not None:
                 data_frames.append(result)
