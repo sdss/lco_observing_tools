@@ -15,7 +15,6 @@ import subprocess
 from clu.legacy.tron import TronConnection
 from yaml import warnings
 
-
 # These actors have an actor version command that replies normally,
 # so we can just iterate over them.
 ACTORS = [
@@ -66,7 +65,7 @@ def get_sos_version():
 
     cmd = subprocess.run(
         "source /home/sdss5/config/services/util/sources.sh && "
-        "module load idlspec2d && "
+        "module -q load idlspec2d && "
         "echo $(idlspec2d_version)+$IDLSPEC2D_VER",
         stdout=subprocess.PIPE,
         shell=True,
@@ -82,7 +81,7 @@ def get_module_versions(modules: list[str]):
     for module in modules:
         cmd = subprocess.run(
             "source /home/sdss5/config/services/util/sources.sh && "
-            f"module load {module} && "
+            f"module -q load {module} && "
             f"module show {module}",
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -101,8 +100,8 @@ def get_kronos_versions():
 
     cmd = subprocess.run(
         "source /home/sdss5/config/services/util/sources.sh && "
-        f"module load kronos && "
-        f"kronosversion.py && roboschedulerversion.py",
+        "module -q load kronos && "
+        "kronosversion.py && roboschedulerversion.py",
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         shell=True,
