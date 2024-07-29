@@ -78,7 +78,12 @@ def process_mjd(mjd: int, min_seqno: int | None = None, max_seqno: int | None = 
                 data_frames.append(result)
 
     sources = pandas.concat(data_frames)
-    sources = sources.loc[(sources.xfitvalid == 1) & (sources.yfitvalid == 1)]
+    sources = sources.loc[
+        (sources.xfitvalid == 1)
+        & (sources.yfitvalid == 1)
+        & (sources.camera != 'gfa2s')
+        & (sources.camera != 'gfa5s')
+    ]
     sources["std"] = numpy.average(
         sources.loc[:, ["xstd", "ystd"]],
         weights=1 / sources.loc[:, ["xrms", "yrms"]],
